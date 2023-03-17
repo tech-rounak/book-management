@@ -4,6 +4,7 @@ import (
 	"context"
 	"github/tech-rounak/book-management/database"
 	"github/tech-rounak/book-management/models"
+	"log"
 	"net/http"
 	"time"
 
@@ -24,12 +25,12 @@ func CreateBook() gin.HandlerFunc {
 		var book models.Book
 
 		if err := c.BindJSON(&book); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"err": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "msg": err.Error()})
 			return
 		}
 
 		if validationErr := validate.Struct(&book); validationErr != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"err": validationErr.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "msg": validationErr.Error()})
 			return
 		}
 		book.ID = primitive.NewObjectID()
@@ -39,10 +40,10 @@ func CreateBook() gin.HandlerFunc {
 		result, err := bookCollection.InsertOne(ctx, book)
 		defer cancel()
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"err": "Error while creating the document"})
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "msg": "Error while creating the document"})
 			return
 		}
-		c.JSON(http.StatusAccepted, result)
+		c.JSON(http.StatusAccepted, gin.H{"success": true, "msg": "Book Created Succesfully", "result": result})
 	}
 }
 func UpdateBook() gin.HandlerFunc {
@@ -58,13 +59,13 @@ func UpdateBook() gin.HandlerFunc {
 		var updatedObj primitive.D
 
 		if err := c.BindJSON(&book); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"err": err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "msg": err.Error()})
 			return
 		}
 
 		err := bookCollection.FindOne(ctx, filter).Decode(&foundBook)
 		if err != nil {
-			c.JSON(http.StatusAccepted, gin.H{"error": "No Book Found with this id"})
+			c.JSON(http.StatusAccepted, gin.H{"success": false, "msg": "No Book Found with this id"})
 			return
 		}
 		defer cancel()
@@ -96,11 +97,11 @@ func UpdateBook() gin.HandlerFunc {
 			opts,
 		)
 		if err != nil {
-			c.JSON(http.StatusAccepted, gin.H{"error": "Cannot Update Book"})
+			c.JSON(http.StatusAccepted, gin.H{"success": false, "msg": "Cannot Update Book"})
 			return
 		}
 		defer cancel()
-		c.JSON(http.StatusOK, res)
+		c.JSON(http.StatusOK, gin.H{"success": true, "msg": "Books Updated Succesfully", "result": res})
 	}
 }
 func GetBookById() gin.HandlerFunc {
@@ -115,11 +116,38 @@ func GetBookById() gin.HandlerFunc {
 
 		err := bookCollection.FindOne(ctx, filter).Decode(&book)
 		if err != nil {
-			c.JSON(http.StatusAccepted, gin.H{"error": "No Book Found with this id"})
+			c.JSON(http.StatusAccepted, gin.H{"success": false, "msg": "No Book Found with this id"})
 			return
 		}
 		defer cancel()
-		c.JSON(http.StatusOK, book)
+		c.JSON(http.StatusOK, gin.H{"success": true, "msg": "Books Fetched Succesfully", "result": book})
+	}
+}
+func GetBooks() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+
+		var books []models.Book
+
+		cur, err := bookCollection.Find(ctx, bson.M{})
+		if err != nil {
+			c.JSON(http.StatusAccepted, gin.H{"success": false, "msg": "No Book Found with this id"})
+			return
+		}
+		defer cancel()
+		
+		for cur.Next(ctx) {
+			var book models.Book
+			err := cur.Decode(&book)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			// add item our array
+			books = append(books, book)
+		}
+
+		c.JSON(http.StatusOK, gin.H{"success": true, "msg": "Books Fetched Succesfully", "result": books})
 	}
 }
 func DeleteBook() gin.HandlerFunc {
@@ -134,16 +162,16 @@ func DeleteBook() gin.HandlerFunc {
 
 		err := bookCollection.FindOne(ctx, filter).Decode(&book)
 		if err != nil {
-			c.JSON(http.StatusAccepted, gin.H{"error": "No Book Found with this id"})
+			c.JSON(http.StatusAccepted, gin.H{"success": false, "msg": "No Book Found with this id"})
 			return
 		}
 		defer cancel()
 
 		res, err := bookCollection.DeleteOne(ctx, filter)
-		if err != nil{
-			c.JSON(http.StatusInternalServerError,gin.H{"err":"Data Couldn't "})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "msg": "Data Couldn't "})
 		}
 		defer cancel()
-		c.JSON(http.StatusOK, res)
+		c.JSON(http.StatusOK, gin.H{"success": true, "msg": "Books Deleted Succesfully", "result": res})
 	}
 }

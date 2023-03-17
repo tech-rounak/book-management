@@ -10,5 +10,6 @@ func BookRoutes(incomingRoutes *gin.Engine) {
 	incomingRoutes.POST("/books/create", controllers.CreateBook())
 	incomingRoutes.PUT("/books/update/:bookId", controllers.UpdateBook())
 	incomingRoutes.GET("/book/:bookId", controllers.GetBookById())
+	incomingRoutes.GET("/books", controllers.GetBooks())
 	incomingRoutes.DELETE("/books/delete/:bookId", controllers.DeleteBook())
 }
